@@ -1,0 +1,79 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: accounts-cd
+spec:
+  params:
+    - name: repo-url
+      type: string
+    - name: image
+      type: string
+    - name: namespace
+      type: string
+      default: default
+  workspaces:
+    - name: source
+  tasks:
+    - name: clone
+      taskRef:
+        name: git-clone
+      params:
+        - name: url
+          value: $(params.repo-url)
+        - name: revision
+          value: main
+      workspaces:
+        - name: output
+          workspace: source
+    - name: build
+      runAfter:
+        - clone
+      taskRef:
+        name: buildah
+      params:
+        - name: IMAGE
+          value: $(params.image)
+        - name: DOCKERFILE
+          value: ./Dockerfile
+        - name: CONTEXT
+          value: .
+        - name: TLSVERIFY
+          value: "false"
+      workspaces:
+        - name: source
+          workspace: source
+    - name: deploy
+      runAfter:
+        - build
+      params:
+        - name: image
+          value: $(params.image)
+        - name: namespace
+          value: $(params.namespace)
+      workspaces:
+        - name: source
+          workspace: source
+      taskSpec:
+        params:
+          - name: image
+            type: string
+          - name: namespace
+            type: string
+        workspaces:
+          - name: source
+        steps:
+          - name: deploy
+            image: bitnami/kubectl:1.30
+            script: |
+              set -eu
+              kubectl apply \
+                --namespace="$(params.namespace)" \
+                --filename="$(workspaces.source.path)/deploy/kubernetes/accounts.yaml"
+              kubectl set image \
+                deployment/accounts \
+                accounts="$(params.image)" \
+                --namespace="$(params.namespace)"
+              kubectl rollout status \
+                deployment/accounts \
+                --namespace="$(params.namespace)" \
+                --timeout=120s
