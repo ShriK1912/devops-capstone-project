@@ -44,6 +44,15 @@ class AccountsApiTestCase(unittest.TestCase):
         self.assertEqual(read_response.status_code, 200)
         self.assertEqual(read_response.get_json()["email"], "alex@example.com")
 
+    def test_home_page_returns_service_name_and_version(self):
+        response = self.client.get("/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.get_json(),
+            {"name": "Account REST API Service", "version": "1.0"},
+        )
+
     def test_list_accounts(self):
         self.create_account()
         response = self.client.get("/accounts")
@@ -70,6 +79,14 @@ class AccountsApiTestCase(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.get_json()["deleted"])
         self.assertEqual(self.client.get(f"/accounts/{account_id}").status_code, 404)
+
+    def test_delete_account_by_email_returns_no_content(self):
+        self.create_account()
+        response = self.client.delete("/accounts", json={"email": "alex@example.com"})
+
+        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.get_data(), b"")
+        self.assertEqual(self.client.get("/accounts/1").status_code, 404)
 
     def test_create_requires_name_and_email(self):
         response = self.client.post("/accounts", json={"name": "Alex"})

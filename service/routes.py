@@ -123,3 +123,22 @@ def delete_account(account_id):
     db.session.delete(account)
     db.session.commit()
     return jsonify({"id": account_id, "deleted": True})
+
+
+@accounts.delete("/accounts")
+def delete_account_by_email():
+    data, error = _request_data()
+    if error:
+        return error
+
+    email = data.get("email")
+    if not isinstance(email, str) or not email.strip():
+        return _error("email is required", 400)
+
+    account = Account.query.filter_by(email=email).first()
+    if account is None:
+        return _error("Account not found", 404)
+
+    db.session.delete(account)
+    db.session.commit()
+    return "", 204

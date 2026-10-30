@@ -41,6 +41,10 @@ def create_app(test_config=None):
 
     app.register_blueprint(accounts)
 
+    @app.get("/")
+    def home():
+        return jsonify({"name": "Account REST API Service", "version": "1.0"})
+
     @app.get("/health")
     def health():
         return jsonify({"status": "ok"})
